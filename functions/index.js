@@ -26,7 +26,14 @@ exports.addMessage = functions.https.onRequest((req, res) => {
   // inserts the message under /messages/:pushId/original
   // but where does the pushId come from?
   admin.database().ref('/messages').push({ original: original }).then(snapshot => {
-    res.redirect(303, snapshot.ref);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(201);
+    // HTTP functions must be terminated with res.redirect(), res.send(), or res.end()
+    res.send(JSON.stringify({
+      status: 'created',
+      ok: true,
+      message: 'a message entry has been created'
+    }));
   });
 });
 
@@ -44,7 +51,10 @@ exports.makeUpperAndLowercase = functions.database.ref('messages/{pushId}/origin
   // must return a promise when performing asynch tasks inside a function
   // writing to fbrtdb is an asynch task
   // callback function should return null, Object, or Promise
-  admin.database().ref('/most-recent').child('data').set(original);
-  event.data.ref.parent.child('lowercase').set(lowercase);
-  return event.data.ref.parent.child('uppercase').set(uppercase);
+  // set() returns a promise, we keep the function alive by returning a promise
+  return admin.database().ref('/most-recent').child('data').set(original).then(() => {
+    event.data.ref.parent.child('lowercase').set(lowercase);
+  }).then(() => {
+    event.data.ref.parent.child('uppercase').set(uppercase);
+  });  
 });
